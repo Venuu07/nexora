@@ -3,7 +3,8 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Heart, Laugh, Frown, Flag, Trash2 } from 'lucide-react';
 import { supabase } from '../supabase';
 
-export default function Envelope({ confession, isAdmin }) {
+// Pass the new onDeleteOptimistically prop here
+export default function Envelope({ confession, isAdmin, onDeleteOptimistically }) {
   const [isOpen, setIsOpen] = useState(false);
   const [hasReported, setHasReported] = useState(() => localStorage.getItem(`report_${confession.id}`) === 'true');
   
@@ -31,24 +32,20 @@ export default function Envelope({ confession, isAdmin }) {
     let newReaction = null;
 
     if (userReaction === type) {
-      // User clicked the same reaction, so we remove their vote
       newCounts[type] = Math.max(0, newCounts[type] - 1);
       localStorage.removeItem(`reaction_${confession.id}`);
     } else {
-      // User is adding a new vote, or switching from an old one
       if (userReaction) {
-        newCounts[userReaction] = Math.max(0, newCounts[userReaction] - 1); // remove old
+        newCounts[userReaction] = Math.max(0, newCounts[userReaction] - 1);
       }
-      newCounts[type] += 1; // add new
+      newCounts[type] += 1;
       newReaction = type;
       localStorage.setItem(`reaction_${confession.id}`, type);
     }
 
-    // Instantly update UI for a snappy feel
     setLocalCounts(newCounts);
     setUserReaction(newReaction);
 
-    // Send the updated counts to Supabase
     const { error } = await supabase
       .from('confessions')
       .update({
@@ -68,7 +65,7 @@ export default function Envelope({ confession, isAdmin }) {
     setHasReported(true);
     localStorage.setItem(`report_${confession.id}`, 'true');
 
-    // Update report count in DB
+    // Increment report in DB silently
     const newReports = (confession.reports || 0) + 1;
     await supabase.from('confessions').update({ reports: newReports }).eq('id', confession.id);
     
@@ -79,7 +76,14 @@ export default function Envelope({ confession, isAdmin }) {
     e.stopPropagation();
     const confirmDelete = window.confirm("ADMIN: Are you sure you want to delete this confession permanently?");
     if (confirmDelete) {
-      setIsOpen(false);
+      setIsOpen(false); // Close envelope instantly
+      
+      // OPTIMISTIC DELETE: Vanish from screen immediately!
+      if (onDeleteOptimistically) {
+        onDeleteOptimistically(confession.id);
+      }
+
+      // BACKGROUND SYNC: Delete from DB
       await supabase.from('confessions').delete().eq('id', confession.id);
     }
   };
@@ -96,7 +100,6 @@ export default function Envelope({ confession, isAdmin }) {
 
   return (
     <>
-      {/* Background Blur Overlay */}
       <AnimatePresence>
         {isOpen && (
           <motion.div 
@@ -119,8 +122,9 @@ export default function Envelope({ confession, isAdmin }) {
         <div className="absolute inset-0 rounded-md shadow-xl" style={{ backgroundColor: theme.inside }}>
           
           {/* The Letter */}
+          {/* The Letter */}
           <motion.div
-            className="absolute left-[5%] right-[5%] bg-white rounded-md shadow-inner p-4 flex flex-col justify-between border border-slate-200"
+            className="absolute left-[5%] right-[5%] bg-white rounded-md shadow-inner p-4 flex flex-col border border-slate-200"
             animate={{ 
               height: isOpen ? '170%' : '90%', 
               y: isOpen ? -110 : 10,
@@ -139,20 +143,35 @@ export default function Envelope({ confession, isAdmin }) {
               </button>
             )}
 
-            <div className="text-center mt-2 relative">
-              <h3 className="font-serif font-extrabold text-slate-900 text-lg border-b-2 border-slate-100 pb-2 mb-3 px-8">
-                {confession.nickname}
-              </h3>
-              <p className="font-serif text-slate-700 text-sm leading-relaxed overflow-y-auto max-h-[140px] scrollbar-hide text-left">
+            {/* Header / Name (shrink-0 keeps it locked at the top) */}
+            <h3 className="font-serif font-extrabold text-slate-900 text-lg border-b-2 border-slate-100 pb-2 mb-2 px-8 text-center shrink-0">
+              {confession.nickname}
+            </h3>
+
+            {/* The Message Body (flex-1 dynamically fills all the empty white space) */}
+            <div className="relative flex-1 min-h-0 overflow-hidden mb-1">
+              <p 
+                className="font-serif text-slate-700 text-sm leading-relaxed overflow-y-auto h-full pb-8 pr-2 text-left"
+                style={{
+                  // Adds a sleek, modern custom scrollbar
+                  scrollbarWidth: 'thin',
+                  scrollbarColor: '#cbd5e1 transparent'
+                }}
+              >
                 {isOpen ? confession.text : "..."}
               </p>
+
+              {/* Premium Fade-Out Gradient indicating more text below */}
+              {isOpen && (
+                <div className="absolute bottom-0 left-0 right-0 h-10 bg-gradient-to-t from-white to-transparent pointer-events-none"></div>
+              )}
             </div>
 
             <AnimatePresence>
               {isOpen && (
                 <motion.div 
                   initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.3 }}
-                  className="flex justify-between items-center pt-3 mt-2 border-t border-slate-100"
+                  className="flex justify-between items-center pt-3 border-t border-slate-100 shrink-0"
                 >
                   {/* Reactions Container */}
                   <div className="flex gap-4">

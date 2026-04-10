@@ -42,6 +42,11 @@ export default function App() {
     setConfessions((prev) => [newConfession, ...prev]);
   };
 
+  // INSTANT UI DELETE FUNCTION
+  const handleOptimisticDelete = (idToDelete) => {
+    setConfessions((prev) => prev.filter(c => c.id !== idToDelete));
+  };
+
   // The Secret Knock Logic
   const handleSecretKnock = () => {
     clickCount.current += 1;
@@ -135,7 +140,12 @@ export default function App() {
         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-x-4 gap-y-12">
           <AnimatePresence>
             {displayedConfessions.map((confession) => (
-              <Envelope key={confession.id} confession={confession} isAdmin={isAdmin} />
+              <Envelope 
+                key={confession.id} 
+                confession={confession} 
+                isAdmin={isAdmin} 
+                onDeleteOptimistically={handleOptimisticDelete} 
+              />
             ))}
           </AnimatePresence>
         </div>
