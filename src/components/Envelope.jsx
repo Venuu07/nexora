@@ -39,8 +39,7 @@ export default function Envelope({ confession }) {
         }`}
       >
         {/* Envelope Backing (Inside) */}
-        <div className="absolute inset-0 rounded-md shadow-xl overflow-hidden" style={{ backgroundColor: theme.inside }}>
-          
+<div className="absolute inset-0 rounded-md shadow-xl" style={{ backgroundColor: theme.inside }}>          
           {/* The Letter */}
           <motion.div
             className="absolute left-[5%] right-[5%] bg-white rounded-md shadow-inner p-4 flex flex-col justify-between overflow-hidden border border-slate-200"
